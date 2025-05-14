@@ -33,7 +33,10 @@ export class StellaProcessor {
     try {
       this.logger.info('Creating temporary directory...');
       // Create temporary directory for processing
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stella-processor-'));
+      tempDir = fs.mkdtempSync(path.join("/tmp", 'stella-processor-'));
+      // tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stella-processor-'));
+
+      this.logger.info(`Temporary directory created: ${tempDir}`);
       
       // Generate file paths
       const mp4Filename = path.basename(objectKey);
@@ -41,7 +44,7 @@ export class StellaProcessor {
     
       await this.s3Service.downloadFile(objectKey, localMp4Path);
 
-      await this.stellaRunner.runStellaVSlamProcessing(localMp4Path);
+      await this.stellaRunner.runStellaVSlamProcessing(localMp4Path, tempDir);
 
 
       

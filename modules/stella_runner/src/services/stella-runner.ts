@@ -1,74 +1,94 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 import type { Logger } from '../utils/logger';
-import { S3Service } from './s3-service';
-import { updateProcessingStatus } from '../lib/status-updater';
-import { fileCleanup } from '../lib/file-cleanup';
+import { ProcessRunner } from '../utils/process-runner';
+import type { ProcessOutputHandler } from '../utils/process-runner';
 
 export class StellaRunner {
   private logger: Logger;
+  private processRunner: ProcessRunner;
 
   constructor(logger: Logger) {
     this.logger = logger;
+    this.processRunner = new ProcessRunner();
   }
 
-  async runStellaVSlamProcessing(objectKey: string) {
+  async runStellaVSlamProcessing(objectKey: string, outputDir: string) {
     this.logger.info(`------------- Running Stella VSlam Processing for ${objectKey} -------------`);
 
-    const result = await this.startStellaVSlamProcessing(objectKey);
-    
-    this.logger.info(`------------- Stella VSlam Processing completed for ${objectKey} -------------`);
-
-    // COPY the content of keyframes folder to s3
-    return result;
+    try {
+      const result = await this.startStellaVSlamProcessing(objectKey, outputDir);
+      this.logger.info(`------------- Stella VSlam Processing completed for ${objectKey} -------------`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Stella VSlam Processing failed:`, error);
+      throw error;
+    }
   }
 
-  private async startStellaVSlamProcessing(objectKey: string) {
+  private async startStellaVSlamProcessing(objectKey: string, outputDir: string) {
     await this.setupOrbVocalFBow();
-    const command = `/stella_vslam_examples/build/run_video_slam -v /stella_vslam_examples/build/orb_vocab.fbow -m ${objectKey} -c /stella_vslam_examples/content/config.yml --no-sleep --eval-log-dir /stella_vslam_examples/result --temporal-mapping --wait-loop-ba --no-sleep --auto-term`;
-    return await this.runDockerStellaVSlamProcessing([command]);
+
+    const command = `/stella_vslam_examples/build/run_video_slam`;
+    const args = [
+      '-v', '/stella_vslam_examples/build/orb_vocab.fbow',
+      '-m', objectKey,
+      '-c', '/stella_vslam_examples/content/config.yml',
+      '--no-sleep',
+      '--start-timestamp', '0',
+      '--eval-log-dir', outputDir,
+      '-o', `${outputDir}/output.db`,
+      '--temporal-mapping',
+      '--wait-loop-ba',
+      '--auto-term',
+    ];
+
+    let isCancelled = false;
+    const onOutput: ProcessOutputHandler = (data) => {
+      // Handle critical errors that require cancellation
+      const criticalErrors = {
+        'Unable to open the video': 'Video file could not be opened',
+        'Illegal instruction': 'Process encountered illegal instruction'
+      };
+
+      for (const [errorText, errorMessage] of Object.entries(criticalErrors)) {
+        if (data.text.includes(errorText)) {
+          this.cancelProcessing();
+          isCancelled = true;
+          this.logger.error(errorMessage);
+          return;
+        }
+      }
+
+      // Log errors and standard output appropriately
+      if (data.label === 'stderr') {
+        this.logger.error(data.text);
+        return;
+      }
+
+      this.logger.info(data.text);
+    };
+
+    await this.runDockerStellaVSlamProcessing(command, args, onOutput);
+
+    if (!isCancelled) {
+      this.logger.info('---------------------------------Processing completed successfully---------------------------------');
+    } else {
+      this.logger.error('Processing cancelled');
+    }
   }
 
   private async setupOrbVocalFBow() {
     const checkCommand = `if [ ! -f "/stella_vslam_examples/build/orb_vocab.fbow" ]; then curl -sL "https://github.com/stella-cv/FBoW_orb_vocab/raw/main/orb_vocab.fbow" -o /stella_vslam_examples/build/orb_vocab.fbow; fi`;
-
-    return await this.executeCommand('docker', ['exec', 'stella-vslam', 'sh', '-c', checkCommand]);
+    await this.processRunner.run('docker', ['exec', 'stella-vslam', 'sh', '-c', checkCommand], { logger: this.logger });
   }
 
-  private async runDockerStellaVSlamProcessing(args: string[]) {
-    return await this.executeCommand('docker', ['exec', 'stella-vslam', 'sh', '-c', ...args]);
-  }
-
-  private executeCommand(command: string, args: string[], outputFile?: string) {
-    return new Promise((resolve, reject) => {
-      this.logger.debug(`Executing command: ${command} ${args.join(' ')}`);
-      
-      try {
-        console.log('command', [command, ...args]);
-        const result = Bun.spawnSync([command, ...args], {
-          stdout: outputFile ? "pipe" : "inherit",
-          stderr: "inherit"
-        });
-        
-        // Handle direct file writing if needed
-        if (outputFile && result.stdout) {
-          Bun.write(outputFile, result.stdout);
-        }
-        
-        // Check exit code
-        if (result.exitCode === 0) {
-          this.logger.debug(`Command completed successfully`);
-          resolve(result.stdout);
-        } else {
-          const errorMsg = `Command failed with code ${result.exitCode}`;
-          this.logger.error(errorMsg);
-          reject(new Error(errorMsg));
-        }
-      } catch (error) {
-        this.logger.error(`Failed to execute command:`, error);
-        reject(error);
-      }
+  private async runDockerStellaVSlamProcessing(command: string, args: string[], onOutput: ProcessOutputHandler) {
+    await this.processRunner.run('docker', ['exec', 'stella-vslam', 'sh', '-c', `${command} ${args.join(' ')}`], {
+      logger: this.logger,
+      onOutput,
     });
+  }
+
+  async cancelProcessing() {
+    this.processRunner.cancel(this.logger);
   }
 }

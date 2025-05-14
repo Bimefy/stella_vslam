@@ -7,7 +7,7 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target node",
     "start": "bun run dist/index.js",
     "start:node": "node -r dotenv/config dist/index.js",
-    "dev": "bun run src/index.ts --hot --watch",
+    "dev": "bun --hot run src/index.ts",
     "lint": "bun eslint src/**/*.ts",
     "test": "bun test",
     "deploy": "sudo docker compose build && sudo docker compose push"

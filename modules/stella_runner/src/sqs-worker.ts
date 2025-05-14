@@ -152,7 +152,9 @@ export class SQSWorker {
             await this.handleS3Event(job) : 
             await this.handleDirectMessage(job);
 
-          if (success) {
+            
+            if (success) {
+            this.logger.info(`Processing result: job ${JSON.stringify(job)} ${success}`);
             await this.deleteMessage(message.ReceiptHandle);
           } else {
             this.logger.info('Processing failed, message will return to queue for retry');

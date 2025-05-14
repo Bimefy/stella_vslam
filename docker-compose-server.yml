@@ -14,8 +14,8 @@ services:
       - OMP_MAX_ACTIVE_LEVELS=2
     volumes:
       - ./content:/stella_vslam_examples/content
+      - ./result:/stella_vslam_examples/result
       - /tmp:/tmp 
-
   stella_vslam_viewer:
      image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam-viewer:latest
      container_name: stella-vslam-viewer
@@ -30,7 +30,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./content:/stella_vslam_examples/content
+      - ./result:/app/result
       - /tmp:/tmp 
       - /var/run/docker.sock:/var/run/docker.sock
       - ./modules/stella_runner/src:/app/src:delegated
