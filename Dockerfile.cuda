@@ -159,42 +159,48 @@ RUN set -x && \
   rm -rf *
 ENV OpenCV_DIR=${CMAKE_INSTALL_PREFIX}/lib/cmake/opencv4
 
-# Pangolin
-ARG PANGOLIN_COMMIT=eab3d3449a33a042b1ee7225e1b8b593b1b21e3e
+
+# socket.io-client-cpp
+ARG SIOCLIENT_COMMIT=ff6ef08e45c594e33aa6bc19ebdd07954914efe0
 WORKDIR /tmp
 RUN set -x && \
-  git clone https://github.com/stevenlovegrove/Pangolin.git && \
-  cd Pangolin && \
-  git checkout ${PANGOLIN_COMMIT} && \
+  git clone https://github.com/shinsumicco/socket.io-client-cpp.git && \
+  cd socket.io-client-cpp && \
+  git checkout ${SIOCLIENT_COMMIT} && \
+  git submodule init && \
+  git submodule update && \
   mkdir -p build && \
   cd build && \
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} \
-    -DBUILD_EXAMPLES=OFF \
-    -DBUILD_PANGOLIN_DEPTHSENSE=OFF \
-    -DBUILD_PANGOLIN_FFMPEG=OFF \
-    -DBUILD_PANGOLIN_LIBDC1394=OFF \
-    -DBUILD_PANGOLIN_LIBJPEG=OFF \
-    -DBUILD_PANGOLIN_LIBOPENEXR=OFF \
-    -DBUILD_PANGOLIN_LIBPNG=OFF \
-    -DBUILD_PANGOLIN_LIBTIFF=OFF \
-    -DBUILD_PANGOLIN_LIBUVC=OFF \
-    -DBUILD_PANGOLIN_LZ4=OFF \
-    -DBUILD_PANGOLIN_OPENNI=OFF \
-    -DBUILD_PANGOLIN_OPENNI2=OFF \
-    -DBUILD_PANGOLIN_PLEORA=OFF \
-    -DBUILD_PANGOLIN_PYTHON=OFF \
-    -DBUILD_PANGOLIN_TELICAM=OFF \
-    -DBUILD_PANGOLIN_UVC_MEDIAFOUNDATION=OFF \
-    -DBUILD_PANGOLIN_V4L=OFF \
-    -DBUILD_PANGOLIN_ZSTD=OFF \
+    -DBUILD_UNIT_TESTS=OFF \
     .. && \
   make -j${NUM_THREADS} && \
   make install && \
   cd /tmp && \
   rm -rf *
-ENV Pangolin_DIR=${CMAKE_INSTALL_PREFIX}/lib/cmake/Pangolin
+ENV sioclient_DIR=${CMAKE_INSTALL_PREFIX}/lib/cmake/sioclient
+
+# protobuf
+WORKDIR /tmp
+RUN set -x && \
+  apt-get update -y -qq && \
+  apt-get upgrade -y -qq --no-install-recommends && \
+  apt-get install -y -qq autogen autoconf libtool && \
+  wget -q https://github.com/google/protobuf/archive/v3.6.1.tar.gz && \
+  tar xf v3.6.1.tar.gz && \
+  cd protobuf-3.6.1 && \
+  ./autogen.sh && \
+  ./configure --prefix=${CMAKE_INSTALL_PREFIX} --enable-static=no && \
+  make -j${NUM_THREADS} && \
+  make install && \
+  cd /tmp && \
+  rm -rf * && \
+  apt-get purge -y -qq autogen autoconf libtool && \
+  apt-get autoremove -y -qq && \
+  rm -rf /var/lib/apt/lists/*
+
 
 # backward-cpp
 ARG BACKWARD_CPP_COMMIT=5ffb2c879ebdbea3bdb8477c671e32b1c984beaa
@@ -212,7 +218,7 @@ RUN set -x && \
   make -j${NUM_THREADS} && \
   make install && \
   cd /tmp && \
-  rm -rf *
+  rm -rf *s
 
 # cuda-efficient-features
 ARG CUDA_EFFICIENT_FEATURES_COMMIT=8cf047a4bed6c1ee56fcde81d4a953b57744ed85
@@ -247,12 +253,12 @@ RUN set -x && \
   rm -rf CMakeCache.txt CMakeFiles Makefile cmake_install.cmake example src && \
   chmod -R 777 ./*
 
-ARG PANGOLIN_VIEWER_COMMIT=f3564675d420bcdbe6380b29b5e2f2b623987dd0
+ARG SOCKET_PUBLISHER_COMMIT=72b85ed39f28bb5e346d65c78b93b4bf5616eb42
 WORKDIR /tmp
 RUN set -x && \
-  git clone https://github.com/stella-cv/pangolin_viewer.git && \
-  cd pangolin_viewer && \
-  git checkout -q ${PANGOLIN_VIEWER_COMMIT} && \
+  git clone https://github.com/stella-cv/socket_publisher.git && \
+  cd socket_publisher && \
+  git checkout -q ${SOCKET_PUBLISHER_COMMIT} && \
   git submodule update --init --recursive && \
   mkdir -p build && \
   cd build && \
@@ -280,6 +286,9 @@ RUN set -x && \
     -DUSE_STACK_TRACE_LOGGER=ON \
     .. && \
   make -j${NUM_THREADS}
+
+# download an ORB vocabulary from GitHub
+RUN curl -sL "https://github.com/stella-cv/FBoW_orb_vocab/raw/main/orb_vocab.fbow" -o orb_vocab.fbow
 
 WORKDIR /stella_vslam_examples/build/
 ENTRYPOINT ["/bin/bash"]

@@ -1,0 +1,38 @@
+{
+  "name": "stella-vslam-runner",
+  "version": "1.0.0",
+  "description": "Service to run Stella VSLAM",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "start": "bun run dist/index.js",
+    "start:node": "node -r dotenv/config dist/index.js",
+    "dev": "bun run src/index.ts --hot --watch",
+    "lint": "bun eslint src/**/*.ts",
+    "test": "bun test",
+    "deploy": "sudo docker compose build && sudo docker compose push"
+  },
+  "dependencies": {
+    "@aws-sdk/client-auto-scaling": "3.806.0",
+    "@aws-sdk/client-s3": "^3.427.0",
+    "@aws-sdk/client-sqs": "^3.427.0",
+    "@aws-sdk/s3-request-presigner": "^3.427.0",
+    "archiver": "7.0.1",
+    "dotenv": "^16.3.1",
+    "undici": "7.5.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "6.0.3",
+    "@types/bun": "1.2.5",
+    "@types/node": "^20.8.2",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "eslint": "^8.50.0",
+    "typescript": "^5.2.2"
+  },
+  "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "packageManager": "bun"
+}

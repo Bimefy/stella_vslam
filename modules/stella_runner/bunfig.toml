@@ -1,0 +1,17 @@
+[install]
+# Use the exact versions specified in package.json
+exact = true
+
+[test]
+# Configure test settings
+coverage = true
+
+[build]
+# Optimization level for bundling
+minify = true
+
+[bundle]
+# Node compatibility settings for bundling
+node-compatibility = true
+# Specific polyfills for stream modules
+external = ["stream", "readable-stream"] 
