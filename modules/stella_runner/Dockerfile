@@ -10,7 +10,7 @@ COPY tsconfig.json ./
 COPY src ./src
 
 RUN bun install
-RUN bun build
+RUN bun run build
 
 WORKDIR /app
 
