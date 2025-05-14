@@ -42,7 +42,7 @@ export class StellaProcessor {
       // Generate file paths
       const mp4Path = path.basename(objectKey);
       
-      const keyPath = mp4Path.split('/').slice(0, -1).join('/');
+      const keyPath = objectKey.split('/').slice(0, -1).join('/');
       const odometryKeyPath =keyPath + '/' + STELLA_VS_LAM_OUTPUT_DIR;
       
       const outputDBPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_DB_FILE);
