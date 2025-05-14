@@ -142,6 +142,7 @@ export class S3Service {
   }
 
   async uploadFile(filePath: string, s3Key: string, metadata?: Record<string, string>): Promise<string | null> {
+    console.log('Uploading file to S3:', filePath, s3Key);
     try {
       this.logger.debug(`Uploading '${filePath}' to S3 as '${s3Key}'...`);
       
