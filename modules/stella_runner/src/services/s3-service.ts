@@ -4,7 +4,6 @@ import { s3Client } from '../utils/aws-clients.js';
 import type { Logger } from '../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
-import { fetch } from 'undici';
 
 export class S3Service {
   private bucketName: string;
@@ -52,7 +51,9 @@ export class S3Service {
         Key: objectKey
       });
 
+      console.log('Generating presigned URL for', objectKey);
       const url = await getSignedUrl(s3Client, command, { expiresIn: expirationSeconds });
+      console.log('Generated presigned URL for', objectKey, url);
       this.logger.debug(`Generated presigned URL for ${objectKey}`);
       return url;
     } catch (error) {
@@ -75,65 +76,52 @@ export class S3Service {
 
   async downloadFromPresignedUrl(presignedUrl: string, localPath: string): Promise<boolean> {
     try {
-      this.logger.debug(`Downloading file from presigned URL to ${localPath}`);
-      
-      fs.mkdirSync(path.dirname(localPath), { recursive: true });
+      this.logger.info(`Downloading from presigned URL to ${localPath}...`);
       
       const response = await fetch(presignedUrl);
-      
-      if (!response.ok || !response.body) {
-        throw new Error(`Failed to download file: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
       }
 
-      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-      this.logger.debug(`File size: ${contentLength} bytes`);
+      const fileStream = fs.createWriteStream(localPath);
+      const reader = response.body?.getReader();
+      
+      if (!reader) {
+        throw new Error('Response body reader is null');
+      }
 
-      console.log("downloadFromPresignedUrl", localPath);
-
-      const writeStream = fs.createWriteStream(localPath);
-      const reader = response.body.getReader();
-      let bytesWritten = 0;
-      let lastProgressUpdate = Date.now();
       let progressIndex = 0;
+      let bytesWritten = 0;
+      const contentLength = Number(response.headers.get('content-length'));
 
       while (true) {
         const { done, value } = await reader.read();
         
-        if (done) {
-          process.stdout.write('\r\x1b[K');
-          this.logger.info('✓ Download complete');
-          break;
-        }
-
-        writeStream.write(value);
-        bytesWritten += value.length;
+        if (done) break;
         
-        const now = Date.now();
-        if (now - lastProgressUpdate > 100) {
-          const progressText = this.updateDownloadProgress(bytesWritten, contentLength, progressIndex);
-          process.stdout.write(`\r\x1b[K${progressText}`);
+        if (value) {
+          fileStream.write(value);
+          bytesWritten += value.length;
           
-          progressIndex = (progressIndex + 1) % this.PROGRESS_CHARS.length;
-          
-          if (bytesWritten % (100 * 1024 * 1024) === 0) {
-            this.logger.debug(`Download progress: ${Math.round((bytesWritten / contentLength) * 100)}%`);
+          if (bytesWritten % (1024 * 1024) === 0) { // Log every MB
+            progressIndex = (progressIndex + 1) % this.PROGRESS_CHARS.length;
+            this.logger.info(this.updateDownloadProgress(bytesWritten, contentLength, progressIndex));
           }
-
-          lastProgressUpdate = now;
         }
       }
 
+      fileStream.end();
+
       await new Promise((resolve, reject) => {
-        writeStream.end();
-        writeStream.on('finish', resolve as () => void);
-        writeStream.on('error', reject);
+        fileStream.on('finish', () => resolve(true));
+        fileStream.on('error', reject);
       });
 
-      this.logger.debug(`Successfully downloaded file to ${localPath}`);
+      this.logger.info('Download completed successfully');
       return true;
 
     } catch (error) {
-      this.logger.error(`Failed to download file from presigned URL:`, error);
+      this.logger.error('Failed to download from presigned URL:', error);
       return false;
     }
   }
