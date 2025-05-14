@@ -33,13 +33,14 @@ export class StellaRunner {
       '-v', '/stella_vslam_examples/build/orb_vocab.fbow',
       '-m', objectKey,
       '-c', '/stella_vslam_examples/content/config.yml',
-      '--no-sleep',
+      // '--no-sleep',
       '--start-timestamp', '0',
       '--eval-log-dir', outputDir,
       '-o', `${outputDir}/${STELLA_VS_LAM_OUTPUT_DB_FILE}`,
-      '--temporal-mapping',
-      '--wait-loop-ba',
+      // '--temporal-mapping',
+      // '--wait-loop-ba',
       '--auto-term',
+      '--viewer', 'none'
     ];
 
     let isCancelled = false;
