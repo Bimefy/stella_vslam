@@ -1,36 +1,38 @@
 services:
+  stella-vslam:
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    platform: linux/amd64
+    container_name: stella-vslam
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
+    network_mode: host
+    environment:
+      - OMP_MAX_ACTIVE_LEVELS=2
+    volumes:
+      - ./content:/stella_vslam_examples/content
+      - /tmp:/tmp 
+  stella_vslam_viewer:
+     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam-viewer:latest
+     container_name: stella-vslam-viewer
+     network_mode: host
+     restart: unless-stopped
   stella-runner:
     build:
       context: ./modules/stella_runner
       dockerfile: Dockerfile
-    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest-test
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest
     container_name: stella-runner
-
     env_file:
       - .env
     volumes:
-      - ./content:/stella_vslam_examples/content
       - /tmp:/tmp 
       - /var/run/docker.sock:/var/run/docker.sock
-  # stella-vslam:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest-test
-  #   container_name: stella-vslam
-  #   entrypoint: /bin/bash
-  #   stdin_open: true
-  #   tty: true       
-  #   volumes:
-  #     - ./content:/stella_vslam_examples/content
-  #     - /tmp:/tmp 
-  # stella_vslam_viewer:
-  #   build:
-  #     context: ./modules/socket_viewer
-  #     dockerfile: Dockerfile
-  #   image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam-viewer:latest
-  #   container_name: stella-vslam-viewer
-  #   network_mode: host
-  #   tty: true
-  #   stdin_open: true
-  #   restart: unless-stopped
+      - ./modules/stella_runner/src:/app/src:delegated
+      - ./modules/stella_runner/package.json:/app/package.json:delegated
+      - ./modules/stella_runner/bunfig.toml:/app/bunfig.toml:delegated
+      - ./modules/stella_runner/tsconfig.json:/app/tsconfig.json:delegated
+      - ./modules/stella_runner/node_modules:/app/node_modules:delegated
