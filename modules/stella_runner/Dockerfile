@@ -10,9 +10,10 @@ COPY tsconfig.json ./
 COPY src ./src
 
 RUN bun install
+RUN bun build
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-CMD ["bun", "run", "dev"]
+CMD ["bun", "run", "start"]
