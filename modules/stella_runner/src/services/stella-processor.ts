@@ -41,7 +41,7 @@ export class StellaProcessor {
     
       await this.s3Service.downloadFile(objectKey, localMp4Path);
 
-      await this.stellaRunner.startStellaVSlamProcessing(localMp4Path);
+      await this.stellaRunner.runStellaVSlamProcessing(localMp4Path);
 
 
       

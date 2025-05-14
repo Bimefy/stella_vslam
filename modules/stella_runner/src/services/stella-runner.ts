@@ -13,7 +13,18 @@ export class StellaRunner {
     this.logger = logger;
   }
 
-  async startStellaVSlamProcessing(objectKey: string) {
+  async runStellaVSlamProcessing(objectKey: string) {
+    this.logger.info(`------------- Running Stella VSlam Processing for ${objectKey} -------------`);
+
+    const result = await this.startStellaVSlamProcessing(objectKey);
+    
+    this.logger.info(`------------- Stella VSlam Processing completed for ${objectKey} -------------`);
+
+    // COPY the content of keyframes folder to s3
+    return result;
+  }
+
+  private async startStellaVSlamProcessing(objectKey: string) {
     await this.setupOrbVocalFBow();
     const command = `/stella_vslam_examples/build/run_video_slam -v /stella_vslam_examples/build/orb_vocab.fbow -m ${objectKey} -c /stella_vslam_examples/content/config.yml --no-sleep --eval-log-dir /stella_vslam_examples/result --temporal-mapping --wait-loop-ba --no-sleep --auto-term`;
     return await this.runDockerStellaVSlamProcessing([command]);
