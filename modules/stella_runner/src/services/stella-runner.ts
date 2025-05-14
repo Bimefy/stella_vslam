@@ -15,8 +15,7 @@ export class StellaRunner {
 
   async startStellaVSlamProcessing(objectKey: string) {
     await this.setupOrbVocalFBow();
-    const command = `/stella_vslam_examples/build/run_video_slam -v /stella_vslam_examples/build/orb_vocab.fbow -m /stella_vslam_examples/content/360_locked_2.mp4 -c /stella_vslam_examples/content/config.yml --no-sleep --eval-log-dir /stella_vslam_examples/result --temporal-mapping --wait-loop-ba --no-sleep --auto-term`;
-    // const command = `/stella_vslam_examples/build/run_video_slam -v /stella_vslam_examples/build/orb_vocab.fbow -m ${objectKey} -c /stella_vslam_examples/content/config.yml --no-sleep --eval-log-dir /stella_vslam_examples/result --temporal-mapping --wait-loop-ba --no-sleep --auto-term`;
+    const command = `/stella_vslam_examples/build/run_video_slam -v /stella_vslam_examples/build/orb_vocab.fbow -m ${objectKey} -c /stella_vslam_examples/content/config.yml --no-sleep --eval-log-dir /stella_vslam_examples/result --temporal-mapping --wait-loop-ba --no-sleep --auto-term`;
     return await this.runDockerStellaVSlamProcessing([command]);
   }
 

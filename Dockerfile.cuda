@@ -15,6 +15,7 @@ RUN set -x && \
     wget \
     curl \
     tar \
+    xvfb \
     unzip && \
   : "g2o dependencies" && \
   apt-get install -y -qq \
