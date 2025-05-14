@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest
     container_name: stella-runner
+    platform: linux/amd64
     env_file:
       - .env
     volumes:
