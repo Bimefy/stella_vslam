@@ -1,6 +1,9 @@
 services:
   stella-vslam:
     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
     platform: linux/amd64
     container_name: stella-vslam
     entrypoint: /bin/bash
@@ -18,6 +21,9 @@ services:
      network_mode: host
      restart: unless-stopped
   stella-runner:
+    build:
+      context: ./modules/stella_runner
+      dockerfile: Dockerfile
     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest
     container_name: stella-runner
     env_file:
