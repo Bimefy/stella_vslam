@@ -1,3 +1,4 @@
+import { STELLA_VS_LAM_OUTPUT_DB_FILE } from '../constant';
 import type { Logger } from '../utils/logger';
 import { ProcessRunner } from '../utils/process-runner';
 import type { ProcessOutputHandler } from '../utils/process-runner';
@@ -35,10 +36,11 @@ export class StellaRunner {
       '--no-sleep',
       '--start-timestamp', '0',
       '--eval-log-dir', outputDir,
-      '-o', `${outputDir}/output.db`,
+      '-o', `${outputDir}/${STELLA_VS_LAM_OUTPUT_DB_FILE}`,
       '--temporal-mapping',
       '--wait-loop-ba',
       '--auto-term',
+      '--frame-skip 50',
     ];
 
     let isCancelled = false;

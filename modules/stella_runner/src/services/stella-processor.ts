@@ -6,6 +6,7 @@ import { S3Service } from './s3-service';
 import { updateProcessingStatus } from '../lib/status-updater';
 import { fileCleanup } from '../lib/file-cleanup';
 import { StellaRunner } from './stella-runner';
+import { STELLA_VS_LAM_OUTPUT_DB_FILE, STELLA_VS_LAM_OUTPUT_DIR, STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE, STELLA_VS_LAM_OUTPUT_KEYFRAME_TRAJECTORY_FILE, STELLA_VS_LAM_OUTPUT_TRACK_TIMES_FILE } from '../constant';
 
 export class StellaProcessor {
   private logger: Logger;
@@ -39,14 +40,28 @@ export class StellaProcessor {
       this.logger.info(`Temporary directory created: ${tempDir}`);
       
       // Generate file paths
-      const mp4Filename = path.basename(objectKey);
-      const localMp4Path = path.join(tempDir, mp4Filename);
+      const mp4Path = path.basename(objectKey);
+      
+      const mp4Filename = mp4Path.split('/').pop();
+      const keyPath = mp4Path.split('/').slice(0, -1).join('/');
+      const odometryKeyPath = mp4Path.split('/').slice(0, -1).join('/') + '/' + STELLA_VS_LAM_OUTPUT_DIR;
+      
+      const outputDBPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_DB_FILE);
+      const outputFrameTrajectoryPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE);
+      const outputKeyframeTrajectoryPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_KEYFRAME_TRAJECTORY_FILE);
+      const outputTrackTimesPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_TRACK_TIMES_FILE);
+
+      
+      const localMp4Path = path.join(tempDir, mp4Path);
     
       await this.s3Service.downloadFile(objectKey, localMp4Path);
 
       await this.stellaRunner.runStellaVSlamProcessing(localMp4Path, tempDir);
 
-
+      await this.s3Service.uploadFile(outputDBPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_DB_FILE}`);
+      await this.s3Service.uploadFile(outputFrameTrajectoryPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE}`);
+      await this.s3Service.uploadFile(outputKeyframeTrajectoryPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_KEYFRAME_TRAJECTORY_FILE}`);
+      await this.s3Service.uploadFile(outputTrackTimesPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_TRACK_TIMES_FILE}`);
       
     } catch (error) {
       this.logger.error(`ERROR: Exception during MP4 stella processing:`, error);
