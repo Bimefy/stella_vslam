@@ -40,7 +40,6 @@ export class StellaRunner {
       '--temporal-mapping',
       '--wait-loop-ba',
       '--auto-term',
-      '--frame-skip 50',
     ];
 
     let isCancelled = false;
