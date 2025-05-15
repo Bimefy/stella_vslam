@@ -1,5 +1,5 @@
 export type SLAMData = {
-  timeCode: Date;
+  timeCode: number;
   x: number;
   y: number;
   z: number;
@@ -19,10 +19,10 @@ export const parseOdometryKeyframeData = (data: string): SLAMData[] => {
       throw new Error(`Invalid SLAM data format. Expected 8 values, got ${values.length}`);
     }
 
-    const [timestamp, y, z, x, qx, qz, qy, qw] = values as [number, number, number, number, number, number, number, number];
+    const [timeCode, y, z, x, qx, qz, qy, qw] = values as [number, number, number, number, number, number, number, number];
     
     return {
-      timeCode: new Date(timestamp * 1000), // Convert Unix timestamp to Date
+      timeCode,
       x,
       y, 
       z,
@@ -50,5 +50,10 @@ export const normalizeData = (data: SLAMData[]) => {
     x: (point.x - minX) * scale,
     y: (point.y - minY) * scale,
     z: (point.z - minZ) * scale,
-  }));
+    qx: point.qx,
+    qy: point.qy,
+    qz: point.qz,
+    qw: point.qw,
+    timeCode: point.timeCode,
+  })) as SLAMData[];
 };

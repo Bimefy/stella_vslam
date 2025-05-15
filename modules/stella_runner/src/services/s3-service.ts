@@ -237,7 +237,10 @@ export class S3Service {
         return { fileName, url };
       });
       
-      const results = await Promise.all(uploadPromises);
+      const results = [];
+      for (const uploadPromise of uploadPromises) {
+        results.push(await uploadPromise);
+      }
       const successfulUploads = results.filter(result => result.url !== null);
       
       if (successfulUploads.length === 0) {

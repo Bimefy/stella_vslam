@@ -9,6 +9,7 @@ import { StellaRunner } from './stella-runner';
 import { STELLA_VS_LAM_OUTPUT_DB_FILE, STELLA_VS_LAM_OUTPUT_DIR, STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE, STELLA_VS_LAM_OUTPUT_KEYFRAME_TRAJECTORY_FILE, STELLA_VS_LAM_OUTPUT_TRACK_TIMES_FILE } from '../constant';
 import { ParseService } from './parse-service';
 import { MetadataService } from './metadata-service';
+import { FFmpegService } from './ffmpeg-service';
 
 export class StellaProcessor {
   private logger: Logger;
@@ -16,6 +17,7 @@ export class StellaProcessor {
   private stellaRunner: StellaRunner;
   private parseService: ParseService;
   private metadataService: MetadataService;
+  private ffmpegService: FFmpegService;
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -23,6 +25,7 @@ export class StellaProcessor {
     this.stellaRunner = new StellaRunner(logger);
     this.parseService = new ParseService(logger);
     this.metadataService = new MetadataService(logger);
+    this.ffmpegService = new FFmpegService(logger);
   }
 
   async processMp4File(objectKey: string): Promise<boolean> {
@@ -32,7 +35,7 @@ export class StellaProcessor {
     this.logger.info('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
     this.logger.info('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
 
-    await updateProcessingStatus(this.logger, objectKey, 'stella_processing');
+    await updateProcessingStatus(this.logger, objectKey, 'in_progress');
 
     let tempDir: string | undefined;
 
@@ -46,14 +49,21 @@ export class StellaProcessor {
       
       // Generate file paths
       const mp4Path = path.basename(objectKey);
-            
+      const baseKeyPath = objectKey.split('/').slice(0, -1).join('/');
+
       const localMp4Path = path.join(tempDir, mp4Path);
     
       await this.s3Service.downloadFile(objectKey, localMp4Path);
 
       await this.stellaRunner.runStellaVSlamProcessing(localMp4Path, tempDir);
 
-      await this.uploadResult(objectKey, tempDir);      
+      await this.uploadResult(objectKey, tempDir, baseKeyPath);
+
+      const normalizedData = await this.parseService.parseData(tempDir);
+
+      await this.metadataService.updateMetadata(objectKey, normalizedData);
+
+      await this.ffmpegService.extractAndUploadScreenshots(localMp4Path, normalizedData.map(d => d.timeCode), tempDir, baseKeyPath);
     } catch (error) {
       this.logger.error(`ERROR: Exception during MP4 stella processing:`, error);
       await updateProcessingStatus(this.logger, objectKey, 'failed');
@@ -71,7 +81,7 @@ export class StellaProcessor {
     try {
       const normalizedData = await this.parseService.parseData(filePath);
   
-      await this.metadataService.updateMetadata(objectKey, normalizedData);
+     
     } catch (error) {
       this.logger.error(`ERROR: Exception during MP4 stella processing:`, error);
       await updateProcessingStatus(this.logger, objectKey, 'failed');
@@ -79,16 +89,13 @@ export class StellaProcessor {
     }
   }
 
-  async uploadResult(objectKey: string, tempDir: string) {
-    const keyPath = objectKey.split('/').slice(0, -1).join('/');
-    const odometryKeyPath =keyPath + '/' + STELLA_VS_LAM_OUTPUT_DIR;
+  async uploadResult(objectKey: string, tempDir: string, baseKeyPath: string) {
+    const odometryKeyPath = baseKeyPath + '/' + STELLA_VS_LAM_OUTPUT_DIR;
 
     const outputDBPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_DB_FILE);
     const outputFrameTrajectoryPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE);
     const outputKeyframeTrajectoryPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_KEYFRAME_TRAJECTORY_FILE);
     const outputTrackTimesPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_TRACK_TIMES_FILE);
-
-    await this.parseAndSaveData(objectKey, outputKeyframeTrajectoryPath);
 
     await this.s3Service.uploadFile(outputDBPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_DB_FILE}`);
     await this.s3Service.uploadFile(outputFrameTrajectoryPath, `${odometryKeyPath}/${STELLA_VS_LAM_OUTPUT_FRAME_TRAJECTORY_FILE}`);

@@ -11,7 +11,7 @@ export interface RunProcessOptions {
 export class ProcessRunner {
   private currentProcess: ReturnType<typeof Bun.spawn> | null = null;
 
-  async run(command: string, args: string[], options: RunProcessOptions = {}): Promise<number> {
+  async run(command: string, args: string[], options: RunProcessOptions = {}, outputFile?: string): Promise<number> {
     const { logger, onOutput, cwd } = options;
     logger?.debug(`Executing command: ${command} ${args.join(' ')}`);
 
@@ -22,7 +22,7 @@ export class ProcessRunner {
           stdout: 'pipe',
           stderr: 'pipe',
           cwd,
-        });
+        }) as ReturnType<typeof Bun.spawn>;
 
         const readStream = async (stream: ReadableStream<Uint8Array>, label: 'stdout' | 'stderr') => {
           const reader = stream.getReader();
@@ -35,12 +35,15 @@ export class ProcessRunner {
           }
         };
 
-        // @ts-ignore
         readStream(this.currentProcess.stdout!, 'stdout');
-        // @ts-ignore
         readStream(this.currentProcess.stderr!, 'stderr');
 
         // @ts-ignore
+        if (outputFile && this.currentProcess.stdout!) {
+          // @ts-ignore
+          Bun.write(outputFile, this.currentProcess.stdout);
+        }
+
         this.currentProcess.exited.then((code: number) => {
           logger?.debug(`Process exited with code ${code}`);
           this.currentProcess = null;

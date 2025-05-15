@@ -19,7 +19,7 @@ export class MetadataService {
   
     const body = {
       object_key: objectKey,
-      path: objectKey.split('/raw/')[0],
+      path: objectKey.split('/processed/')[0],
       keyframeData: keyframeData,
     };
   

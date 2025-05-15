@@ -2,7 +2,7 @@ FROM oven/bun
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git docker.io
+RUN apt-get update && apt-get install -y git docker.io ffmpeg
 
 COPY package.json bunfig.toml ./
 
