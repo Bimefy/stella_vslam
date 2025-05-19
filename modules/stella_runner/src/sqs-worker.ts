@@ -44,7 +44,7 @@ export class SQSWorker {
 
   private async stopInstance(): Promise<void> {
     try {
-      // await setAutoScalingDesiredCapacity(0, this.logger);
+      await setAutoScalingDesiredCapacity(0, this.logger);
     } catch (error) {
       this.logger.error('Failed to update Auto Scaling group:', error);
     }
@@ -152,7 +152,6 @@ export class SQSWorker {
             await this.handleS3Event(job) : 
             await this.handleDirectMessage(job);
 
-            
             if (success) {
             this.logger.info(`Processing result: job ${JSON.stringify(job)} ${success}`);
             await this.deleteMessage(message.ReceiptHandle);

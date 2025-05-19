@@ -16,4 +16,4 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-CMD ["bun", "run", "start"]
+CMD ["bun", "run", "dev"]

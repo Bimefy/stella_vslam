@@ -9,7 +9,7 @@ export class StellaRunner {
 
   constructor(logger: Logger) {
     this.logger = logger;
-    this.processRunner = new ProcessRunner();
+    this.processRunner = new ProcessRunner(logger);
   }
 
   async runStellaVSlamProcessing(objectKey: string, outputDir: string) {
@@ -40,7 +40,7 @@ export class StellaRunner {
       // '--temporal-mapping',
       // '--wait-loop-ba',
       '--auto-term',
-      // '--viewer', 'none'
+      '--viewer', 'none'
     ];
 
     let isCancelled = false;
@@ -69,7 +69,11 @@ export class StellaRunner {
       this.logger.info(data.text);
     };
 
+    this.logger.info(`Running Stella VSlam Processing for ${objectKey} starting at ${new Date().toISOString()}`);
+    
     await this.runDockerStellaVSlamProcessing(command, args, onOutput);
+    
+    this.logger.info(`Stella VSlam Processing for ${objectKey} completed at ${new Date().toISOString()}`);
 
     if (!isCancelled) {
       this.logger.info('---------------------------------Processing completed successfully---------------------------------');
@@ -91,6 +95,6 @@ export class StellaRunner {
   }
 
   async cancelProcessing() {
-    this.processRunner.cancel(this.logger);
+    this.processRunner.cancel();
   }
 }

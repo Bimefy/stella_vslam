@@ -9,11 +9,17 @@ export interface RunProcessOptions {
 }
 
 export class ProcessRunner {
+  private logger: Logger;
+
+  constructor(logger: Logger) {
+    this.logger = logger;
+  }
+
   private currentProcess: ReturnType<typeof Bun.spawn> | null = null;
 
   async run(command: string, args: string[], options: RunProcessOptions = {}, outputFile?: string): Promise<number> {
-    const { logger, onOutput, cwd } = options;
-    logger?.debug(`Executing command: ${command} ${args.join(' ')}`);
+    const { onOutput, cwd } = options;
+    this.logger.debug(`Executing command: ${command} ${args.join(' ')}`);
 
     return new Promise((resolve, reject) => {
       try {
@@ -45,31 +51,50 @@ export class ProcessRunner {
         }
 
         this.currentProcess.exited.then((code: number) => {
-          logger?.debug(`Process exited with code ${code}`);
+          this.logger.debug(`Process exited with code ${code}`);
           this.currentProcess = null;
+          console.log(`Process exited with code ${code}`);
           resolve(code);
         });
       } catch (error) {
         this.currentProcess = null;
-        logger?.error('Failed to execute command:', error);
+        this.logger.error('Failed to execute command:', error);
         reject(error);
       }
     });
   }
 
-  cancel(logger?: Logger) {
+  cancel() {
     if (this.currentProcess) {
-      logger?.info('Canceling current process...');
+      this.logger.info('Canceling current process...');
       try {
         this.currentProcess.kill();
         this.currentProcess = null;
-        logger?.info('Process canceled successfully');
+        this.logger.info('Process canceled successfully');
       } catch (error) {
-        logger?.error('Failed to cancel process:', error);
+        this.logger.error('Failed to cancel process:', error);
         throw error;
       }
     } else {
-      logger?.warn('No active process to cancel');
+      this.logger.warn('No active process to cancel');
     }
+  }
+
+    executeCommandSync(command: string, args: string[], outputFile?: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const result = Bun.spawnSync([command, ...args], {
+          stdio: ['ignore', 'ignore', 'ignore']
+        });
+
+        if (result.exitCode === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Command failed with code ${result.exitCode}`));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 } 

@@ -55,6 +55,7 @@ export class StellaProcessor {
     
       await this.s3Service.downloadFile(objectKey, localMp4Path);
 
+      await updateProcessingStatus(this.logger, objectKey, 'parsing_slam');
       await this.stellaRunner.runStellaVSlamProcessing(localMp4Path, tempDir);
 
       await this.uploadResult(objectKey, tempDir, baseKeyPath);
@@ -69,6 +70,7 @@ export class StellaProcessor {
       await updateProcessingStatus(this.logger, objectKey, 'failed');
       return false;
     } finally {
+      await updateProcessingStatus(this.logger, objectKey, 'processed');
       if (tempDir) {
         await fileCleanup(this.logger, tempDir, objectKey);
       }

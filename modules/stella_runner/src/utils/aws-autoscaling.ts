@@ -2,7 +2,7 @@ import { UpdateAutoScalingGroupCommand } from '@aws-sdk/client-auto-scaling';
 import { setupLogger } from './logger.js';
 import { autoScalingClient } from './aws-clients.js';
 
-const AUTOSCALING_GROUP_NAME = 'InsvParserGPU AutoScaling Group';
+const AUTOSCALING_GROUP_NAME = 'Odometry AutoScaling Group';
 
 export async function setAutoScalingDesiredCapacity(
   desiredCapacity: number,

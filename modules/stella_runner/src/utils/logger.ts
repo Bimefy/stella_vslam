@@ -1,11 +1,11 @@
 /**
  * Simple logger utility
  */
-export interface Logger {
-  info(message: string | object, ...args: any[]): void;
-  error(message: string | object, ...args: any[]): void;
-  debug(message: string | object, ...args: any[]): void;
-  warn(message: string | object, ...args: any[]): void;
+export type Logger = {
+  info: (message: string | object, ...args: any[]) => void;
+  error: (message: string | object, ...args: any[]) => void;
+  debug: (message: string | object, ...args: any[]) => void;
+  warn: (message: string | object, ...args: any[]) => void;
 }
 
 /**
@@ -23,63 +23,16 @@ export function setupLogger(options?: {
 
   return {
     info: (message: string | object, ...args: any[]) => {
-      if (logLevels[logLevel] <= logLevels.info) {
-        createLog('info', message, prefix, ...args);
-      }
+      console.log(`[${new Date().toISOString()}] [INFO] ${prefix}${message}`, ...args);
     },
     warn: (message: string | object, ...args: any[]) => {
-      if (logLevels[logLevel] <= logLevels.warn) {
-        createLog('warn', message, prefix, ...args);
-      }
+      console.log(`[${new Date().toISOString()}] [WARN] ${prefix}${message}`, ...args);
     },
     error: (message: string | object, ...args: any[]) => {
-      if (logLevels[logLevel] <= logLevels.error) {
-        createLog('error', message, prefix, ...args);
-      }
+      console.log(`[${new Date().toISOString()}] [ERROR] ${prefix}${message}`, ...args);
     },
     debug: (message: string | object, ...args: any[]) => {
-      if (logLevels[logLevel] <= logLevels.debug) {
-        createLog('debug', message, prefix, ...args);
-      }
+      console.log(`[${new Date().toISOString()}] [DEBUG] ${prefix}${message}`, ...args);
     }
   };
-}
-
-/**
- * Creates a formatted log entry
- * @param type Log level type
- * @param message Message or context object to log
- * @param prefix Optional prefix for the log
- * @param args Additional arguments to log
- */
-export const createLog = (
-  type: 'info' | 'error' | 'debug' | 'warn', 
-  message: string | object, 
-  prefix: string = '',
-  ...args: any[]
-) => {
-  const timestamp = new Date().toISOString();
-  
-  if (typeof message === 'object' && message !== null) {
-    // Handle context object pattern seen in the codebase
-    if ('name' in message && typeof message.name === 'string') {
-      const { name, ...context } = message as { name: string, [key: string]: any };
-      console[type](
-        `[${timestamp}] [${type.toUpperCase()}] ${prefix}${name}:`, 
-        JSON.stringify(context), 
-        ...args
-      );
-    } else {
-      console[type](
-        `[${timestamp}] [${type.toUpperCase()}] ${prefix}`, 
-        JSON.stringify(message), 
-        ...args
-      );
-    }
-  } else {
-    console[type](
-      `[${timestamp}] [${type.toUpperCase()}] ${prefix}${message}`, 
-      ...args
-    );
-  }
 }

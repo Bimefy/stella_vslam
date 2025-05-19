@@ -3,6 +3,7 @@ services:
     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest
     platform: linux/amd64
     container_name: stella-vslam
+    restart: unless-stopped
     entrypoint: /bin/bash
     stdin_open: true
     tty: true
@@ -21,6 +22,7 @@ services:
     image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest
     container_name: stella-runner
     platform: linux/amd64
+    restart: unless-stopped
     env_file:
       - .env
     volumes:

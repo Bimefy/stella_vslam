@@ -1,12 +1,23 @@
 import type { Logger } from '../utils/logger';
 
+export type InsvStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'parsing_insv'
+  | 'parsing_slam'
+  | 'parsing_gps'
+  | 'processed'
+  | 'failed';
+
 export async function updateProcessingStatus(
   logger: Logger,
   objectKey: string,
-  status: 'pending' | 'in_progress' | 'processed' | 'failed'
+  status: InsvStatus
 ): Promise<void> {
   if (!process.env.BIMEFY_SERVER_URL || !process.env.INSV_META_SECRET) {
     logger.warn('BIMEFY_SERVER_URL or INSV_META_SECRET is not set, skipping metadata request');
+
+    console.log(process.env);
     return;
   }
 

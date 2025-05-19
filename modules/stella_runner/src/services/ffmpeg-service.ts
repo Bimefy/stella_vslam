@@ -14,31 +14,48 @@ export class FFmpegService {
 
   constructor(logger: Logger) {
     this.logger = logger;
-    this.processRunner = new ProcessRunner();
+    this.processRunner = new ProcessRunner(logger);
     this.s3Service = new S3Service(logger);
     this.zipService = new ZipService(logger);
   }
 
   async extractScreenshots(videoPath: string, timeCodes: number[], outputDir: string) {
     try {
-      this.logger.debug(`Extracting ${timeCodes.length} screenshots from video: ${videoPath}`);
+      console.log(`Extracting ${timeCodes.length} screenshots from video: ${videoPath}`);
       
       if (timeCodes.length === 0) {
         this.logger.warn('No timeCodes provided for screenshot extraction');
         return [];
       }
 
+      const chunkSize = 3;
+
       fs.mkdirSync(outputDir, { recursive: true });
       
       const screenshotPaths = [];
+      const chunkArray = (arr: any[], chunkSize: number) => 
+        Array.from({ length: Math.ceil(arr.length / chunkSize) }, (_, i) =>
+          arr.slice(i * chunkSize, (i + 1) * chunkSize)
+        );
 
-      for (const [index, timestamp] of timeCodes.entries()) {
-        const result = await this.extractSingleScreenshot(videoPath, timestamp, outputDir, index);
-        screenshotPaths.push(...result);
+      for (const [chunkIndex, chunk] of chunkArray(timeCodes, chunkSize).entries()) {
+        const chunkResults = await Promise.all(
+          chunk.map((timestamp, i) => 
+            this.extractSingleScreenshot(
+              videoPath,
+              timestamp,
+              outputDir,
+              chunkIndex * chunkSize + i,
+              timeCodes.length
+            )
+          )
+        );
+        
+        screenshotPaths.push(...chunkResults.flat());
       }
 
       const validScreenshots = screenshotPaths.filter(Boolean) as string[];
-      this.logger.debug(`Successfully extracted ${validScreenshots.length} screenshots from ${timeCodes.length} timeCodes`);
+      console.log(`Successfully extracted ${validScreenshots.length} screenshots from ${timeCodes.length} timeCodes`);
       
       return validScreenshots;
     } catch (error) {
@@ -51,7 +68,8 @@ export class FFmpegService {
     videoPath: string,
     timeCode: number,
     outputDir: string,
-    index: number
+    index: number,
+    totalTimeCodes: number
   ) {
     if (!timeCode) {
       this.logger.warn(`Skipping undefined timestamp at index ${index}`);
@@ -59,44 +77,43 @@ export class FFmpegService {
     }
 
     const resolutions = [
-      { suffix: 'low', scale: 'scale=-1:480:flags=lanczos' },
-      { suffix: 'medium', scale: 'scale=-1:1080:flags=lanczos' },
+      { suffix: 'low', scale: 'scale=-1:1080:flags=lanczos' },
       { suffix: 'high', scale: 'scale=-1:3840:flags=lanczos' }
     ];
 
     const screenshotPaths = [];
 
     for (const res of resolutions) {
-      const resDir = path.join(outputDir, `screenshotsOdometry-${res.suffix}`);
+      const resDir = path.join(outputDir, `${SCREENSHOT_DIR}-${res.suffix}`);
       fs.mkdirSync(resDir, { recursive: true });
 
       const screenshotPath = path.join(resDir, `${index + 1}.webp`);
 
       try {
-        this.logger.debug(`Extracting ${res.suffix} screenshot at ${timeCode}...`);
-        await this.processRunner.run('ffmpeg', [
+        console.log(`Extracting ${res.suffix} screenshot at ${timeCode} on ${totalTimeCodes}...`);
+        await this.processRunner.executeCommandSync('ffmpeg', [
           '-accurate_seek',
           '-ss', timeCode.toString(),
           '-i', videoPath,
           '-frames:v', '1',
-          '-vf', res.scale,
+          '-vf', `${res.scale},format=yuv420p`,
           '-c:v', 'libwebp',
           '-quality', '95',
           '-compression_level', '6',
           '-preset', 'photo',
+          '-color_range', '2',
           '-y',
           screenshotPath
         ]);
-        this.logger.debug(`Screenshot ${index + 1} (${res.suffix}) extracted successfully`);
 
         if (fs.existsSync(screenshotPath) && fs.statSync(screenshotPath).size > 0) {
-          this.logger.debug(`Screenshot ${index + 1} (${res.suffix}) extracted successfully`);
+          console.log(`Screenshot ${index + 1} of ${totalTimeCodes} (${res.suffix}) extracted successfully`);
           screenshotPaths.push(screenshotPath);
         } else {
-          this.logger.warn(`Failed to create ${res.suffix} screenshot at ${timeCode} - file is missing or empty`);
+          this.logger.warn(`Failed to create ${res.suffix} screenshot at ${timeCode} on ${totalTimeCodes} - file is missing or empty`);
         }
       } catch (err) {
-        this.logger.error(`Error extracting ${res.suffix} screenshot at ${timeCode}:`, err);
+        this.logger.error(`Error extracting ${res.suffix} screenshot at ${timeCode} on ${totalTimeCodes}:`, err);
       }
     }
 
@@ -104,7 +121,7 @@ export class FFmpegService {
   }
 
   async extractAndUploadScreenshots(mp4Path: string, timeCodes: number[], tempDir: string, baseS3Path: string) {
-    const screenshotsDir = path.join(tempDir, 'screenshotsOdometry');
+    const screenshotsDir = path.join(tempDir, SCREENSHOT_DIR);
     fs.mkdirSync(screenshotsDir, { recursive: true });
 
     const screenshotPaths = await this.extractScreenshots(mp4Path, timeCodes, screenshotsDir);
@@ -136,15 +153,15 @@ export class FFmpegService {
     screenshotsDir: string, 
     baseS3Path: string
   ) {
-    const resolutions = ['low', 'medium', 'high'];
+    const resolutions = ['low', 'high'];
     
     for (const res of resolutions) {
-      const resDir = path.join(screenshotsDir, `image-${res}`);
-      const s3ResKey = `${baseS3Path}/image-${res}`;
+      const resDir = path.join(screenshotsDir, `${SCREENSHOT_DIR}-${res}`);
+      const s3ResKey = `${baseS3Path}/${SCREENSHOT_DIR}-${res}`;
       
       const metadata = {
         'content-type': 'image/webp',
-        'total-screenshots': validPaths.filter(p => p.includes(`image-${res}`)).length.toString()
+        'total-screenshots': validPaths.filter(p => p.includes(SCREENSHOT_DIR + `-${res}`)).length.toString()
       };
 
       const screenshotUrls = await this.s3Service.uploadDirectory(resDir, s3ResKey, metadata);
@@ -163,7 +180,7 @@ export class FFmpegService {
     tempDir: string, 
     baseS3Path: string, 
   ) {
-    const highResPaths = validPaths.filter(p => p.includes('image-high'));
+    const highResPaths = validPaths.filter(p => p.includes(SCREENSHOT_DIR + '-high'));
     
     if (!highResPaths.length) {
       this.logger.error('No high-resolution screenshots found for ZIP archive');
