@@ -1,7 +1,5 @@
-# Equirectangular model for RICOH THETA S
- 
-Camera:
-  name: "RICOH THETA S 960"
+ Camera:
+  name: "Insta360 X4"
   setup: "monocular"
   model: "equirectangular"
  
