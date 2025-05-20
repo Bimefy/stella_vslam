@@ -18,10 +18,13 @@ export class ParseService {
     const data = await readAndParseFile(filePath);
     const parsedData = parseOdometryKeyframeData(data);
 
+    console.log({parsedData});
+
     const normalizedData = normalizeData(parsedData);
 
     this.logger.info('Data parsed and normalized successfully');
 
+    console.log({normalizedData});
     return normalizedData;
   }
 }

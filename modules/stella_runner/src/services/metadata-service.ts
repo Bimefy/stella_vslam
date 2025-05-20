@@ -20,7 +20,7 @@ export class MetadataService {
     const body = {
       object_key: objectKey,
       path: objectKey.split('/processed/')[0],
-      keyframeData: keyframeData,
+      keyframeData,
     };
   
     const inputUrls = JSON.parse(process.env.BIMEFY_SERVER_URL || '[]');

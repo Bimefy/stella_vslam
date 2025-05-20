@@ -102,6 +102,7 @@ export class FFmpegService {
           '-compression_level', '6',
           '-preset', 'photo',
           '-color_range', '2',
+          '-threads', '8',
           '-y',
           screenshotPath
         ]);
