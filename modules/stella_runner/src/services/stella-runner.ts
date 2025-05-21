@@ -2,6 +2,7 @@ import { STELLA_VS_LAM_OUTPUT_DB_FILE } from '../constant';
 import type { Logger } from '../utils/logger';
 import { ProcessRunner } from '../utils/process-runner';
 import type { ProcessOutputHandler } from '../utils/process-runner';
+import { getSocketClient } from '../utils/socket-client';
 
 export class StellaRunner {
   private logger: Logger;
@@ -95,6 +96,14 @@ export class StellaRunner {
   }
 
   async cancelProcessing() {
-    this.processRunner.cancel();
+    // this.processRunner.cancel();
+    // Emit terminate signal to socket.io
+    try {
+      const socket = getSocketClient();
+      socket.emit('signal', 'terminate');
+      this.logger.info('Emitted terminate signal to socket.io');
+    } catch (err) {
+      this.logger.error('Failed to emit terminate signal to socket.io', err);
+    }
   }
 }

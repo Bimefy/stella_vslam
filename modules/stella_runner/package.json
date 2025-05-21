@@ -19,6 +19,7 @@
     "@aws-sdk/s3-request-presigner": "^3.427.0",
     "archiver": "7.0.1",
     "dotenv": "^16.3.1",
+    "socket.io-client": "^4.8.1",
     "undici": "7.5.0"
   },
   "devDependencies": {
@@ -34,5 +35,8 @@
   "engines": {
     "bun": ">=1.0.0"
   },
-  "packageManager": "bun"
+  "packageManager": "bun",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
