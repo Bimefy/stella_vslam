@@ -1,7 +1,6 @@
 import { config } from 'dotenv';
 import { SQSWorker } from './sqs-worker';
 import { setupLogger } from './utils/logger';
-import { startSocketBridge } from './utils/socket-bridge';
 
 console.log('Starting Stella Runner service...');
 
@@ -35,6 +34,3 @@ worker.start().catch(error => {
   logger.error('Fatal error in SQS worker:', error);
   process.exit(1);
 });
-
-// Start socket bridge (3000 -> 3003)
-startSocketBridge(); 

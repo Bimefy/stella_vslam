@@ -39,12 +39,27 @@ export const normalizeData = (data: SLAMData[]) => {
   const yValues = data.map(d => d.y);
   const zValues = data.map(d => d.z);
   const minX = Math.min(...xValues);
-  const maxX = Math.max(...xValues);
   const minY = Math.min(...yValues);
+  const maxX = Math.max(...xValues);
   const maxY = Math.max(...yValues);
   const minZ = Math.min(...zValues);
 
-  const scale = 500 / Math.min(maxX, maxY) / 2
+  const absMaxX = Math.max(...data.map(d => Math.abs(d.x)));
+  const absMaxY = Math.max(...data.map(d => Math.abs(d.y)));
+
+  const scale = 500 / Math.min(absMaxX, absMaxY) / 2
+
+  console.log({
+    xValues,
+    yValues,
+    zValues,
+    minX,
+    maxX,
+    minY,
+    maxY,
+    minZ,
+    scale,
+  });
 
   return data.map(point => ({
     x: (point.x - minX) * scale,

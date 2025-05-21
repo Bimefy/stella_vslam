@@ -2,7 +2,6 @@ import { STELLA_VS_LAM_OUTPUT_DB_FILE } from '../constant';
 import type { Logger } from '../utils/logger';
 import { ProcessRunner } from '../utils/process-runner';
 import type { ProcessOutputHandler } from '../utils/process-runner';
-import { getSocketClient } from '../utils/socket-client';
 
 export class StellaRunner {
   private logger: Logger;
@@ -41,16 +40,23 @@ export class StellaRunner {
       // '--temporal-mapping',
       // '--wait-loop-ba',
       '--auto-term',
-      '--viewer', 'none'
     ];
-
     let isCancelled = false;
+    let relocalizationTimeout: Timer | null = null;
+    let trackingLostTime: number | null = null;
+
     const onOutput: ProcessOutputHandler = (data) => {
       // Handle critical errors that require cancellation
       const criticalErrors = {
         'Unable to open the video': 'Video file could not be opened',
         'Illegal instruction': 'Process encountered illegal instruction'
       };
+      const terminateOnErrors = [
+        'tracking lost: frame',
+      ];
+      const relocalizationSuccess = [
+        'relocalization succeeded',
+      ];
 
       for (const [errorText, errorMessage] of Object.entries(criticalErrors)) {
         if (data.text.includes(errorText)) {
@@ -58,6 +64,29 @@ export class StellaRunner {
           isCancelled = true;
           this.logger.error(errorMessage);
           return;
+        }
+      }
+
+      if (terminateOnErrors.some(errorText => data.text.includes(errorText))) {
+        if (!trackingLostTime) {
+          trackingLostTime = Date.now();
+          this.logger.error('$$$$$$$$$$$$$$$$$$$Tracking lost$$$$$$$$$$$$$$$$$$$$$$$', data.label, data.text);
+          this.logger.info('Waiting 30 seconds for possible relocalization...');
+          
+          relocalizationTimeout = setTimeout(() => {
+            this.logger.error('No relocalization detected within 30 seconds, terminating...');
+            this.terminateProcessing();
+            isCancelled = true;
+          }, 30000);
+        }
+      }
+
+      if (relocalizationSuccess.some(text => data.text.includes(text))) {
+        if (relocalizationTimeout) {
+          clearTimeout(relocalizationTimeout);
+          relocalizationTimeout = null;
+          trackingLostTime = null;
+          this.logger.info('Relocalization succeeded! Continuing processing...');
         }
       }
 
@@ -96,14 +125,17 @@ export class StellaRunner {
   }
 
   async cancelProcessing() {
-    // this.processRunner.cancel();
-    // Emit terminate signal to socket.io
+    this.logger.info('Cancelling Stella VSlam Processing...');
+    this.processRunner.cancel();
+  }
+
+  async terminateProcessing() {
     try {
-      const socket = getSocketClient();
-      socket.emit('signal', 'terminate');
-      this.logger.info('Emitted terminate signal to socket.io');
+      this.logger.info('Terminating Stella VSlam Processing...');
+      fetch('http://localhost:3001/terminate');
     } catch (err) {
       this.logger.error('Failed to emit terminate signal to socket.io', err);
+      this.cancelProcessing();
     }
   }
 }

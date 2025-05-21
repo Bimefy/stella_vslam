@@ -225,14 +225,13 @@ export class S3Service {
 
         progressInterval = setInterval(() => {
           const progress = Math.round(((index) / files.length) * 100);
-          process.stdout.write(`\r${this.PROGRESS_CHARS[frameIndex]} Uploading ${fileName} (${progress}% overall)`);
+          this.logger.info(`${this.PROGRESS_CHARS[frameIndex]} Uploading ${fileName} (${progress}% overall)`);
           frameIndex = (frameIndex + 1) % this.PROGRESS_CHARS.length;
-        }, 80);
+        }, 1000);
 
         const url = await this.uploadFile(filePath, s3Key, fileMetadata);
 
         clearInterval(progressInterval);
-        process.stdout.write('\r\x1b[K');
 
         return { fileName, url };
       });
@@ -241,6 +240,7 @@ export class S3Service {
       for (const uploadPromise of uploadPromises) {
         results.push(await uploadPromise);
       }
+
       const successfulUploads = results.filter(result => result.url !== null);
       
       if (successfulUploads.length === 0) {
