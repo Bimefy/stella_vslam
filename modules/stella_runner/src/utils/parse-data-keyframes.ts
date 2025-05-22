@@ -38,33 +38,30 @@ export const normalizeData = (data: SLAMData[]) => {
   const xValues = data.map(d => d.x);
   const yValues = data.map(d => d.y);
   const zValues = data.map(d => d.z);
+
   const minX = Math.min(...xValues);
   const minY = Math.min(...yValues);
-  const maxX = Math.max(...xValues);
-  const maxY = Math.max(...yValues);
   const minZ = Math.min(...zValues);
 
-  const absMaxX = Math.max(...data.map(d => Math.abs(d.x)));
-  const absMaxY = Math.max(...data.map(d => Math.abs(d.y)));
+  const xValuesFromZero = xValues.map(e => e + Math.abs(minX));
+  const yValuesFromZero = yValues.map(e => e + Math.abs(minY));
+  const zValuesFromZero = zValues.map(e => e + Math.abs(minZ));
+  
+  const absMaxX = Math.max(...xValuesFromZero);
+  const absMaxY = Math.max(...yValuesFromZero);
 
-  const scale = 500 / Math.min(absMaxX, absMaxY) / 2
+  let scale = 500 / Math.max(absMaxX, absMaxY)
 
-  console.log({
-    xValues,
-    yValues,
-    zValues,
-    minX,
-    maxX,
-    minY,
-    maxY,
-    minZ,
-    scale,
-  });
+  if (scale === Infinity) {
+    scale = 1
+  }
 
-  return data.map(point => ({
-    x: (point.x - minX) * scale,
-    y: (point.y - minY) * scale,
-    z: (point.z - minZ) * scale,
+  console.log({scale, absMaxX, absMaxY, minX, minY, minZ})
+
+  return data.map((point, index) => ({
+    x: (xValuesFromZero[index] ?? 1) * scale,
+    y: (yValuesFromZero[index] ?? 1) * scale,
+    z: (zValuesFromZero[index] ?? 1) * scale,
     qx: point.qx,
     qy: point.qy,
     qz: point.qz,
