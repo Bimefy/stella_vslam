@@ -1,10 +1,10 @@
 services:
   stella-vslam:
-    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam:latest-arm64
     build:
       context: .
       dockerfile: Dockerfile.cuda
-    platform: linux/amd64
+    # platform: linux/amd64
     container_name: stella-vslam
     entrypoint: /bin/bash
     stdin_open: true
@@ -19,18 +19,18 @@ services:
     build:
       context: ./modules/socket_viewer
       dockerfile: Dockerfile
-    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam-viewer:latest
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-vslam-viewer:latest-arm64
     container_name: stella-vslam-viewer
-    platform: linux/amd64
+    # platform: linux/amd64
     network_mode: host
     restart: unless-stopped
   stella-runner:
     build:
       context: ./modules/stella_runner
       dockerfile: Dockerfile
-    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest-arm64
     container_name: stella-runner
-    platform: linux/amd64
+    # platform: linux/amd64
     env_file:
       - .env
     volumes:

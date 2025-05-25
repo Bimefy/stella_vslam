@@ -249,7 +249,7 @@ RUN set -x && \
   cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     .. && \
-  make -j${NUM_THREADS} && \
+  make -j8 && \
   make install && \
   rm -rf CMakeCache.txt CMakeFiles Makefile cmake_install.cmake example src && \
   chmod -R 777 ./*

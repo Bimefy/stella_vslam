@@ -57,6 +57,9 @@ export class StellaRunner {
       const relocalizationSuccess = [
         'relocalization succeeded',
       ];
+      const resetTracking = [
+        'resetting system',
+      ];
 
       for (const [errorText, errorMessage] of Object.entries(criticalErrors)) {
         if (data.text.includes(errorText)) {
@@ -71,23 +74,28 @@ export class StellaRunner {
         if (!trackingLostTime) {
           trackingLostTime = Date.now();
           this.logger.error('$$$$$$$$$$$$$$$$$$$Tracking lost$$$$$$$$$$$$$$$$$$$$$$$', data.label, data.text);
-          this.logger.info('Waiting 30 seconds for possible relocalization...');
+          this.logger.info('Waiting 300 seconds for possible relocalization...');
           
           relocalizationTimeout = setTimeout(() => {
             this.logger.error('No relocalization detected within 30 seconds, terminating...');
             this.terminateProcessing();
             isCancelled = true;
-          }, 30000);
+          }, 300000);
         }
       }
 
-      if (relocalizationSuccess.some(text => data.text.includes(text))) {
-        if (relocalizationTimeout) {
-          clearTimeout(relocalizationTimeout);
-          relocalizationTimeout = null;
-          trackingLostTime = null;
-          this.logger.info('Relocalization succeeded! Continuing processing...');
-        }
+      if (relocalizationTimeout && relocalizationSuccess.some(text => data.text.includes(text))) {
+        clearTimeout(relocalizationTimeout);
+        relocalizationTimeout = null;
+        trackingLostTime = null;
+        this.logger.info('Relocalization succeeded! Continuing processing...');
+      }
+
+      if (relocalizationTimeout && resetTracking.some(text => data.text.includes(text))) {
+        this.logger.info('Tracking reset! Continuing processing...');
+        clearTimeout(relocalizationTimeout);
+        relocalizationTimeout = null;
+        trackingLostTime = null;
       }
 
       // Log errors and standard output appropriately

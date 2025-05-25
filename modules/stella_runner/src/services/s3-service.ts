@@ -62,18 +62,6 @@ export class S3Service {
     }
   }
 
-  private updateDownloadProgress(bytesWritten: number, contentLength: number, progressIndex: number): string {
-    const progress = contentLength ? 
-      Math.round((bytesWritten / contentLength) * 100) :
-      Math.round(bytesWritten / 1024 / 1024);
-    
-    const progressChar = this.PROGRESS_CHARS[progressIndex];
-    
-    return contentLength ?
-      `${progressChar} Downloading... ${progress}% (${Math.round(bytesWritten / 1024 / 1024)}MB/${Math.round(contentLength / 1024 / 1024)}MB)` :
-      `${progressChar} Downloading... ${progress}MB`;
-  }
-
   async downloadFromPresignedUrl(presignedUrl: string, localPath: string): Promise<boolean> {
     try {
       this.logger.info(`Downloading from presigned URL to ${localPath}...`);
@@ -92,7 +80,10 @@ export class S3Service {
 
       let progressIndex = 0;
       let bytesWritten = 0;
+      let bytesWrittenThisSecond = 0;
       const contentLength = Number(response.headers.get('content-length'));
+      const startTime = Date.now();
+      let lastLogTime = startTime;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -102,10 +93,24 @@ export class S3Service {
         if (value) {
           fileStream.write(value);
           bytesWritten += value.length;
-          
-          if (bytesWritten % (1024 * 1024) === 0) { // Log every MB
-            progressIndex = (progressIndex + 1) % this.PROGRESS_CHARS.length;
-            this.logger.info(this.updateDownloadProgress(bytesWritten, contentLength, progressIndex));
+          bytesWrittenThisSecond += value.length;
+
+          const currentTime = Date.now();
+          const elapsedSeconds = (currentTime - lastLogTime) / 1000;
+
+          if (elapsedSeconds >= 1) {
+            const speedMBps = (bytesWrittenThisSecond / (1024 * 1024)) / elapsedSeconds;
+            const percentage = contentLength ? Math.round((bytesWritten / contentLength) * 100) : 0;
+            
+            this.logger.info(
+              `Download: ${percentage}% complete | ` +
+              `Speed: ${speedMBps.toFixed(2)} MB/s | ` +
+              `Total: ${Math.round(bytesWritten / (1024 * 1024))}MB` +
+              (contentLength ? `/${Math.round(contentLength / (1024 * 1024))}MB` : '')
+            );
+
+            bytesWrittenThisSecond = 0;
+            lastLogTime = currentTime;
           }
         }
       }
@@ -117,7 +122,9 @@ export class S3Service {
         fileStream.on('error', reject);
       });
 
-      this.logger.info('Download completed successfully');
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = (bytesWritten / (1024 * 1024)) / totalTime;
+      this.logger.info(`Download completed successfully in ${totalTime.toFixed(2)}s (avg ${avgSpeed.toFixed(2)} MB/s)`);
       return true;
 
     } catch (error) {
@@ -214,47 +221,43 @@ export class S3Service {
       
       this.logger.info(`Uploading ${files.length} files from directory ${directoryPath} to S3`);
       
-      let frameIndex = 0;
-      let progressInterval: ReturnType<typeof setInterval>;
-
-      const uploadPromises = files.map(async (fileName, index) => {
-        const filePath = path.join(directoryPath, fileName);
-        const s3Key = `${s3BaseKey}/${fileName}`.replace(/\\/g, '/').replace(/\/+/g, '/');
-        
-        const fileMetadata = { ...metadata, filename: fileName };
-
-        progressInterval = setInterval(() => {
-          const progress = Math.round(((index) / files.length) * 100);
-          this.logger.info(`${this.PROGRESS_CHARS[frameIndex]} Uploading ${fileName} (${progress}% overall)`);
-          frameIndex = (frameIndex + 1) % this.PROGRESS_CHARS.length;
-        }, 1000);
-
-        const url = await this.uploadFile(filePath, s3Key, fileMetadata);
-
-        clearInterval(progressInterval);
-
-        return { fileName, url };
-      });
-      
       const results = [];
-      for (const uploadPromise of uploadPromises) {
-        results.push(await uploadPromise);
+      let uploadedCount = 0;
+
+      for (const fileName of files) {
+        try {
+          const filePath = path.join(directoryPath, fileName);
+          const s3Key = `${s3BaseKey}/${fileName}`.replace(/\\/g, '/').replace(/\/+/g, '/');
+          const fileMetadata = { ...metadata, filename: fileName };
+
+          this.logger.info(`Uploading file ${fileName} (${uploadedCount + 1}/${files.length})`);
+          
+          const url = await this.uploadFile(filePath, s3Key, fileMetadata);
+          
+          if (url) {
+            results.push(url);
+            uploadedCount++;
+            this.logger.info(`Successfully uploaded ${fileName} (${uploadedCount}/${files.length})`);
+          } else {
+            this.logger.warn(`Failed to upload ${fileName}`);
+          }
+        } catch (error) {
+          this.logger.error(`Error uploading ${fileName}:`, error);
+        }
       }
 
-      const successfulUploads = results.filter(result => result.url !== null);
-      
-      if (successfulUploads.length === 0) {
+      if (results.length === 0) {
         this.logger.error(`Failed to upload any files from directory: ${directoryPath}`);
         return null;
       }
       
-      if (successfulUploads.length < files.length) {
-        this.logger.warn(`Partially uploaded directory: ${successfulUploads.length}/${files.length} files uploaded`);
+      if (results.length < files.length) {
+        this.logger.warn(`Partially uploaded directory: ${results.length}/${files.length} files uploaded`);
       } else {
         this.logger.info(`Successfully uploaded all ${files.length} files from directory: ${directoryPath}`);
       }
       
-      return successfulUploads.map(result => result.url as string);
+      return results;
     } catch (error) {
       this.logger.error(`Failed to upload directory:`, error);
       return null;

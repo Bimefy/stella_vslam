@@ -18,7 +18,6 @@ export class FFmpegService {
     this.s3Service = new S3Service(logger);
     this.zipService = new ZipService(logger);
   }
-
   async extractScreenshots(videoPath: string, timeCodes: number[], outputDir: string) {
     try {
       console.log(`Extracting ${timeCodes.length} screenshots from video: ${videoPath}`);
@@ -28,30 +27,23 @@ export class FFmpegService {
         return [];
       }
 
-      const chunkSize = 3;
-
       fs.mkdirSync(outputDir, { recursive: true });
       
       const screenshotPaths = [];
-      const chunkArray = (arr: any[], chunkSize: number) => 
-        Array.from({ length: Math.ceil(arr.length / chunkSize) }, (_, i) =>
-          arr.slice(i * chunkSize, (i + 1) * chunkSize)
+
+      for (let i = 0; i < timeCodes.length; i++) {
+        const timestamp = timeCodes[i]!;
+        const result = await this.extractSingleScreenshot(
+          videoPath,
+          timestamp,
+          outputDir,
+          i,
+          timeCodes.length
         );
 
-      for (const [chunkIndex, chunk] of chunkArray(timeCodes, chunkSize).entries()) {
-        const chunkResults = await Promise.all(
-          chunk.map((timestamp, i) => 
-            this.extractSingleScreenshot(
-              videoPath,
-              timestamp,
-              outputDir,
-              chunkIndex * chunkSize + i,
-              timeCodes.length
-            )
-          )
-        );
-        
-        screenshotPaths.push(...chunkResults.flat());
+        if (result) {
+          screenshotPaths.push(...result);
+        }
       }
 
       const validScreenshots = screenshotPaths.filter(Boolean) as string[];

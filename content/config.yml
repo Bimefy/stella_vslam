@@ -34,6 +34,10 @@ Mapping:
  
 Tracking:
   backend: "g2o"
+  reloc_distance_threshold: 10
+  init_retry_threshold_time: 10
+  enable_temporal_keyframe_only_tracking: true
+  enable_relocalization: true
  
 LoopDetector:
   backend: "g2o"
@@ -48,9 +52,17 @@ GlobalOptimizer:
   thr_neighbor_keyframes: 100
  
 System:
-  map_format: "msgpack"
+  map_format: "sqlite3"
   num_grid_cols: 96
   num_grid_rows: 48
+
+Relocalizer:
+  search_neighbor: true
+
+KeyframeInserts:
+  min_distance: 10
+  min_interval: 10
+  wait_for_local_bundle_adjustment: true
 
 SocketPublisher:
   server_uri: "http://localhost:3000"
