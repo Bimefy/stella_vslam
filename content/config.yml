@@ -46,10 +46,10 @@ LoopDetector:
   min_distance_on_graph: 50
  
 GraphOptimizer:
-  min_num_shared_lms: 200
+  min_num_shared_lms: 100
  
 GlobalOptimizer:
-  thr_neighbor_keyframes: 100
+  thr_neighbor_keyframes: 50
  
 System:
   map_format: "sqlite3"
