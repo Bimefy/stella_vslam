@@ -63,13 +63,13 @@ export class FFmpegService {
     index: number,
     totalTimeCodes: number
   ) {
-    if (!timeCode) {
-      this.logger.warn(`Skipping undefined timestamp at index ${index}`);
+    if (!timeCode && timeCode !== 0) {
+      this.logger.warn(`Skipping undefined timestamp at index ${index} -> ${timeCode}`);
       return [];
     }
 
     const resolutions = [
-      { suffix: 'low', scale: 'scale=-1:1080:flags=lanczos' },
+      { suffix: 'low', scale: 'scale=-1:480:flags=lanczos' },
       { suffix: 'high', scale: 'scale=-1:3840:flags=lanczos' }
     ];
 

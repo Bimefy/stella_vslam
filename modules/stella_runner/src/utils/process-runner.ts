@@ -80,7 +80,7 @@ export class ProcessRunner {
     }
   }
 
-    executeCommandSync(command: string, args: string[], outputFile?: string): Promise<void> {
+    executeCommandSync(command: string, args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         const result = Bun.spawnSync([command, ...args], {

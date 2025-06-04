@@ -103,7 +103,9 @@ export class SQSWorker {
   private async handleS3Event(event: S3Event): Promise<boolean> {
     for (const record of event.Records) {
       if (record.eventSource === 'aws:s3' && record.eventName.startsWith('ObjectCreated')) {
-        return await this.processMp4File(record.s3.object.key, record.s3.bucket.name);
+        const key = decodeURIComponent(record.s3.object.key);
+        const bucket = record.s3.bucket.name;
+        return await this.processMp4File(key, bucket);
       }
     }
     return true;

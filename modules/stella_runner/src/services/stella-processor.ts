@@ -58,7 +58,7 @@ export class StellaProcessor {
       await updateProcessingStatus(this.logger, objectKey, 'parsing_slam');
       await this.stellaRunner.runStellaVSlamProcessing(localMp4Path, tempDir);
 
-      await this.uploadResult(objectKey, tempDir, baseKeyPath);
+      await this.uploadResult(tempDir, baseKeyPath);
 
       const normalizedData = await this.parseService.parseData(tempDir);
 
@@ -79,19 +79,7 @@ export class StellaProcessor {
     return true;
   }
 
-  async parseAndSaveData(objectKey: string, filePath: string) {
-    try {
-      const normalizedData = await this.parseService.parseData(filePath);
-  
-     
-    } catch (error) {
-      this.logger.error(`ERROR: Exception during MP4 stella processing:`, error);
-      await updateProcessingStatus(this.logger, objectKey, 'failed');
-      return false;
-    }
-  }
-
-  async uploadResult(objectKey: string, tempDir: string, baseKeyPath: string) {
+  async uploadResult(tempDir: string, baseKeyPath: string) {
     const odometryKeyPath = baseKeyPath + '/' + STELLA_VS_LAM_OUTPUT_DIR;
 
     const outputDBPath = path.join(tempDir, STELLA_VS_LAM_OUTPUT_DB_FILE);

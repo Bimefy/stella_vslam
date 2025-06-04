@@ -9,7 +9,6 @@ export class S3Service {
   private bucketName: string;
   private logger: Logger;
   private readonly CHUNK_SIZE = 150 * 1024 * 1024; // 150MB chunks
-  private readonly PROGRESS_CHARS = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
   constructor(logger: Logger) {
     this.bucketName = process.env.S3_BUCKET_NAME || '';
@@ -78,7 +77,6 @@ export class S3Service {
         throw new Error('Response body reader is null');
       }
 
-      let progressIndex = 0;
       let bytesWritten = 0;
       let bytesWrittenThisSecond = 0;
       const contentLength = Number(response.headers.get('content-length'));
