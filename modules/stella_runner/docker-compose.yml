@@ -11,3 +11,15 @@ services:
     volumes:
       - /tmp:/tmp 
       - /var/run/docker.sock:/var/run/docker.sock
+  stella-runner-arm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 381492108418.dkr.ecr.eu-north-1.amazonaws.com/bimefy/stella-runner:latest-arm64
+    container_name: stella-runner-arm
+    platform: linux/arm64
+    env_file:
+      - .env
+    volumes:
+      - /tmp:/tmp 
+      - /var/run/docker.sock:/var/run/docker.sock
