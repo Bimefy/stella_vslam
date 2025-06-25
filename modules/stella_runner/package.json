@@ -10,6 +10,7 @@
     "dev": "bun --hot run src/index.ts",
     "lint": "bun eslint src/**/*.ts",
     "test": "bun test",
+    "test-retry": "bun run src/test-retry.ts",
     "deploy": "sudo docker compose build && sudo docker compose push"
   },
   "dependencies": {

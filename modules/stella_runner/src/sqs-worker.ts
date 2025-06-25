@@ -6,6 +6,9 @@ import { sqsClient } from './utils/aws-clients.js';
 import { setupLogger } from './utils/logger.js';
 import { StellaProcessor } from './services/stella-processor.js';
 import { setAutoScalingDesiredCapacity } from './utils/aws-autoscaling.js';
+import { RetryTracker } from './lib/retry-tracker.js';
+import { updateProcessingStatus } from './lib/status-updater.js';
+import { printRetryStats } from './utils/retry-stats.js';
 import type { Logger } from './utils/logger.js';
 
 type S3Record = {
@@ -30,6 +33,7 @@ export class SQSWorker {
   private readonly queueUrl: string;
   private readonly logger: Logger;
   private readonly stellaProcessor: StellaProcessor;
+  private readonly retryTracker: RetryTracker;
   private readonly MAX_EMPTY_POLLS = 10;
   private readonly ALLOW_TURN_OFF = process.env.ALLOW_TURN_OFF !== 'false';
 
@@ -40,6 +44,7 @@ export class SQSWorker {
     this.queueUrl = process.env.SQS_QUEUE_URL || '';
     this.logger = setupLogger();
     this.stellaProcessor = new StellaProcessor(this.logger);
+    this.retryTracker = new RetryTracker(this.logger, 3);
   }
 
   private async stopInstance(): Promise<void> {
@@ -59,11 +64,28 @@ export class SQSWorker {
     this.isRunning = true;
     this.logger.info(`Starting SQS worker to poll for INSV file messages from ${this.queueUrl}`);
     
+    // Print retry statistics on startup
+    printRetryStats();
+    
+    // Clean up old retry records on startup
+    this.retryTracker.cleanupOldRecords();
+    
+    let pollCount = 0;
+    
     while (this.isRunning) {
       try {
         this.emptyPollCount++;
+        pollCount++;
+        
         this.logger.info(`Polling for messages from SQS. Empty poll count: ${this.emptyPollCount}`);
         await this.pollMessages();
+        
+        // Clean up old retry records and print stats every 100 polls (approximately every 100 seconds)
+        if (pollCount % 100 === 0) {
+          this.retryTracker.cleanupOldRecords();
+          this.logger.info('--- Periodic Retry Statistics ---');
+          printRetryStats();
+        }
       } catch (error) {
         this.logger.error('Error in SQS worker main loop:', error);
       }
@@ -95,9 +117,47 @@ export class SQSWorker {
       return true;
     }
 
-    this.logger.info(`Processing MP4 file: ${objectKey} from bucket ${bucket}`);
-    const result = await this.stellaProcessor.processMp4File(objectKey);
-    return result !== null;
+    // Check if this file has exceeded max retries
+    if (this.retryTracker.hasExceededMaxRetries(objectKey)) {
+      this.logger.error(`File ${objectKey} has exceeded maximum retry attempts. Setting status to failTooMuchRetry`);
+      await updateProcessingStatus(this.logger, objectKey, 'failTooMuchRetry');
+      return true; // Consider this "successful" to remove from queue
+    }
+
+    // Increment retry count before processing
+    const currentRetryCount = this.retryTracker.incrementRetryCount(objectKey);
+    this.logger.info(`Processing MP4 file: ${objectKey} from bucket ${bucket} (attempt ${currentRetryCount}/3)`);
+
+    try {
+      const result = await this.stellaProcessor.processMp4File(objectKey);
+      
+      if (result) {
+        // Processing succeeded, remove retry record
+        this.retryTracker.removeRetryRecord(objectKey);
+        return true;
+      } else {
+        // Processing failed
+        if (this.retryTracker.hasExceededMaxRetries(objectKey)) {
+          this.logger.error(`File ${objectKey} failed and exceeded maximum retry attempts. Setting status to failTooMuchRetry`);
+          await updateProcessingStatus(this.logger, objectKey, 'failTooMuchRetry');
+          return true; // Remove from queue
+        }
+        
+        this.logger.warn(`Processing failed for ${objectKey}. Will retry (attempt ${currentRetryCount}/3)`);
+        return false; // Let SQS retry
+      }
+    } catch (error) {
+      this.logger.error(`Error processing ${objectKey}:`, error);
+      
+      if (this.retryTracker.hasExceededMaxRetries(objectKey)) {
+        this.logger.error(`File ${objectKey} errored and exceeded maximum retry attempts. Setting status to failTooMuchRetry`);
+        await updateProcessingStatus(this.logger, objectKey, 'failTooMuchRetry');
+        return true; // Remove from queue
+      }
+      
+      this.logger.warn(`Processing errored for ${objectKey}. Will retry (attempt ${currentRetryCount}/3)`);
+      return false; // Let SQS retry
+    }
   }
 
   private async handleS3Event(event: S3Event): Promise<boolean> {
@@ -155,10 +215,10 @@ export class SQSWorker {
             await this.handleDirectMessage(job);
 
             if (success) {
-            this.logger.info(`Processing result: job ${JSON.stringify(job)} ${success}`);
+            this.logger.info(`Processing completed successfully for job: ${JSON.stringify(job)}`);
             await this.deleteMessage(message.ReceiptHandle);
           } else {
-            this.logger.info('Processing failed, message will return to queue for retry');
+            this.logger.warn('Processing failed, message will return to queue for retry');
           }
         } catch (error) {
           this.logger.error('Error processing message:', error);

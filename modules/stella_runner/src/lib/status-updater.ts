@@ -7,7 +7,8 @@ export type InsvStatus =
   | 'parsing_slam'
   | 'parsing_gps'
   | 'processed'
-  | 'failed';
+  | 'failed'
+  | 'failTooMuchRetry';
 
 export async function updateProcessingStatus(
   logger: Logger,
